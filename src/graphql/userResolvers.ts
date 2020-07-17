@@ -1,7 +1,9 @@
+import { MyContext } from './../../MyContext';
 import { User } from '../entity/User';
-import { Resolver, Mutation, Arg, Query, ObjectType, Field } from 'type-graphql'
+import { Resolver, Mutation, Arg, Query, ObjectType, Field, Ctx, UseMiddleware } from 'type-graphql'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { isAuth } from '../middlewares/isAuth';
 
 @ObjectType()
 class LoginType{
@@ -20,21 +22,39 @@ export class userResolver{
     return await User.find()
   }
 
+  @Query(() => String)
+  @UseMiddleware(isAuth)
+  bye(
+    @Ctx() {payload} : MyContext
+  ){
+    return `Your use id is ${payload.userId}`
+  }
+
   @Mutation(() => LoginType )
   async login(
     @Arg("email", () => String) email: string, 
-    @Arg("password", () => String) password: string
+    @Arg("password", () => String) password: string,
+    @Ctx() { res } : MyContext
   ) : Promise<LoginType>{
     const user = await User.findOne({where: {email}})
 
     if(user){
       const comparePassword = await bcrypt.compare(password, user.password)
 
-      const token = jwt.sign({email}, "treinando_graphql", {
+      const token = jwt.sign({userId: user.id}, "treinando_graphql", {
         expiresIn: 86400
       })
 
       if(comparePassword){
+
+        res.cookie("@refresh/token", jwt.sign({userId: user.id}, "refresh_token", {
+          expiresIn: "365d"
+        }), {
+          httpOnly: true
+        }
+        
+        )
+
         return {
           user,
           token
