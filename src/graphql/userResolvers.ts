@@ -11,6 +11,23 @@ export class userResolver{
   }
 
   @Mutation(() => User)
+  async login(
+    @Arg("email", () => String) email: string, 
+    @Arg("password", () => String) password: string
+  ){
+    const user = await User.findOne({where: {email}})
+
+    if(user){
+      const comparePassword = await bcrypt.compare(password, user.password)
+      if(comparePassword){
+        return true
+      }
+      return false
+    }
+    return false
+  }
+
+  @Mutation(() => User)
   async register(
     @Arg("email", () => String) email: string, 
     @Arg("password", () => String) password: string
