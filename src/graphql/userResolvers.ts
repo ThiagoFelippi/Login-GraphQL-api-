@@ -1,6 +1,16 @@
 import { User } from '../entity/User';
-import { Resolver, Mutation, Arg, Query } from 'type-graphql'
+import { Resolver, Mutation, Arg, Query, ObjectType, Field } from 'type-graphql'
 import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
+
+@ObjectType()
+class LoginType{
+  @Field()
+  user: User
+
+  @Field()
+  token: string
+}
 
 @Resolver()
 export class userResolver{
@@ -10,21 +20,29 @@ export class userResolver{
     return await User.find()
   }
 
-  @Mutation(() => User)
+  @Mutation(() => LoginType )
   async login(
     @Arg("email", () => String) email: string, 
     @Arg("password", () => String) password: string
-  ){
+  ) : Promise<LoginType>{
     const user = await User.findOne({where: {email}})
 
     if(user){
       const comparePassword = await bcrypt.compare(password, user.password)
+
+      const token = jwt.sign({email}, "treinando_graphql", {
+        expiresIn: 86400
+      })
+
       if(comparePassword){
-        return true
+        return {
+          user,
+          token
+        }
       }
-      return false
+      throw new Error("Incorrect password")
     }
-    return false
+    throw new Error("Incorrect email")
   }
 
   @Mutation(() => User)
